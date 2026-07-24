@@ -98,7 +98,42 @@ TRUE_LABELS = [  # the "right answers"
     "sarcastic"  # "Oh great, another Monday"
 ]
 
-print("Lengths match:", len(SAMPLE_POSTS) == len(TRUE_LABELS))
+# ---------------------------------------------------------------------
+# Label mapping (resolving the label-space mismatch)
+# ---------------------------------------------------------------------
+#
+# TRUE_LABELS above uses a rich human vocabulary (slang, sarcastic, etc.)
+# that captures HOW a post is worded. But MoodAnalyzer can only ever
+# output four labels: positive, negative, neutral, mixed. Comparing the
+# rich labels directly against the model is unfair: those posts can never
+# match, so accuracy is capped for reasons unrelated to model quality.
+#
+# LABEL_MAP collapses every human label onto the model's four-label space
+# so that rule-based evaluation is measured fairly. The four model labels
+# map to themselves; the richer labels are judgment calls you can revise.
+#
+# EVAL_LABELS is the normalized list to score the RULE-BASED model against.
+# (The ML model in ml_experiments.py can instead learn TRUE_LABELS directly,
+# since it is not limited to the four-label space.)
+LABEL_MAP = {
+    # The model's own labels map to themselves.
+    "positive": "positive",
+    "negative": "negative",
+    "neutral": "neutral",
+    "mixed": "mixed",
+    # Richer human labels collapsed onto the four-label space.
+    # These are interpretations — adjust them if you disagree.
+    "slang": "positive",             # "im dead 💀" = laughing hard
+    "sarcastic": "negative",         # positive words, negative meaning
+    "passive_aggressive": "negative",
+    "ambiguous": "neutral",          # no clear polarity
+    "questioning": "neutral",        # a question, not a sentiment
+}
+
+# Normalized labels for fair rule-based evaluation. Uses .get(label, label)
+# so any label missing from LABEL_MAP passes through unchanged and is caught
+# (rather than crashing) by the reliability report's label-space check.
+EVAL_LABELS = [LABEL_MAP.get(label, label) for label in TRUE_LABELS]
 
 # TODO: Add 5-10 more posts and labels.
 #

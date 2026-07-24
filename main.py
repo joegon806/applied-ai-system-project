@@ -5,12 +5,21 @@ Entry point for the Mood Machine rule based mood analyzer.
 from typing import List
 
 from mood_analyzer import MoodAnalyzer
-from dataset import SAMPLE_POSTS, TRUE_LABELS
+from dataset import SAMPLE_POSTS, TRUE_LABELS, EVAL_LABELS
 
 
-def evaluate_rule_based(posts: List[str], labels: List[str]) -> float:
+def evaluate_rule_based(
+    posts: List[str],
+    labels: List[str],
+    original_labels: List[str] = None,
+) -> float:
     """
     Evaluate the rule based MoodAnalyzer on a labeled dataset.
+
+    `labels` are the labels the model is scored against — pass the
+    NORMALIZED EVAL_LABELS so the four-label model is judged fairly (see
+    LABEL_MAP in dataset.py and reliability.py for why). `original_labels`
+    is the optional richer human label shown alongside for transparency.
 
     Prints each text with its predicted label and the true label,
     then returns the overall accuracy as a float between 0 and 1.
@@ -19,8 +28,11 @@ def evaluate_rule_based(posts: List[str], labels: List[str]) -> float:
     correct = 0
     total = len(posts)
 
+    if original_labels is None:
+        original_labels = labels
+
     print("=== Rule Based Evaluation on SAMPLE_POSTS ===")
-    for text, true_label in zip(posts, labels):
+    for text, true_label, human_label in zip(posts, labels, original_labels):
         predicted_label = analyzer.predict_label(text)
         is_correct = predicted_label == true_label
         if is_correct:
@@ -30,7 +42,13 @@ def evaluate_rule_based(posts: List[str], labels: List[str]) -> float:
         # reason = analyzer.explain(text)
         # print(f'"{text}" -> predicted={predicted_label}, true={true_label} ({reason})')
 
-        print(f'"{text}" -> predicted={predicted_label}, true={true_label}')
+        # Show the normalized label used for scoring, plus the original
+        # human label when it differs (e.g. "sarcastic" -> "negative").
+        if human_label != true_label:
+            print(f'"{text}" -> predicted={predicted_label}, '
+                  f'true={true_label} (human: {human_label})')
+        else:
+            print(f'"{text}" -> predicted={predicted_label}, true={true_label}')
 
     if total == 0:
         print("\nNo labeled examples to evaluate.")
@@ -83,7 +101,8 @@ def run_interactive_loop() -> None:
 
 
 if __name__ == "__main__":
-    evaluate_rule_based(SAMPLE_POSTS, TRUE_LABELS)
+    # Score against normalized labels; show the original human labels too.
+    evaluate_rule_based(SAMPLE_POSTS, EVAL_LABELS, TRUE_LABELS)
 
     run_batch_demo()
 
