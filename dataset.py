@@ -23,6 +23,7 @@ POSITIVE_WORDS = [
     "chill",
     "relaxed",
     "amazing",
+    "proud",
 ]
 
 NEGATIVE_WORDS = [
@@ -36,6 +37,21 @@ NEGATIVE_WORDS = [
     "stressed",
     "hate",
     "boring",
+    "exhausted",
+]
+
+# Words that flip the polarity of the sentiment word that follows them.
+# Note: preprocess() strips apostrophes, so "don't" -> "dont", "isn't" -> "isnt".
+NEGATION_WORDS = [
+    "not",
+    "no",
+    "never",
+    "cant",
+    "cannot",
+    "dont",
+    "isnt",
+    "wasnt",
+    "wont",
 ]
 
 # ---------------------------------------------------------------------
@@ -50,6 +66,13 @@ SAMPLE_POSTS = [
     "This is fine",
     "So excited for the weekend",
     "I am not happy about this",
+    "im dead 💀", #colloquially, means laughing really hard, or shocked
+    "I absolutely love getting stuck in traffic",
+    "I feel very strongly about this.",
+    "What do you mean",
+    "It is what it is",
+    "I told you so",
+    "Oh great, another Monday"
 ]
 
 # Human labels for each post above.
@@ -58,14 +81,24 @@ SAMPLE_POSTS = [
 #   - "negative"
 #   - "neutral"
 #   - "mixed"
-TRUE_LABELS = [
+TRUE_LABELS = [  # the "right answers"
     "positive",  # "I love this class so much"
     "negative",  # "Today was a terrible day"
     "mixed",     # "Feeling tired but kind of hopeful"
     "neutral",   # "This is fine"
     "positive",  # "So excited for the weekend"
     "negative",  # "I am not happy about this"
+    
+    "slang",     # "im dead 💀"
+    "sarcastic", # "I absolutely love getting stuck in traffic"
+    "ambiguous",  # "I feel very strongly about this."
+    "questioning", # "What do you mean"
+    "ambiguous",  # "It is what it is"
+    "passive_aggressive",  # "I told you so"
+    "sarcastic"  # "Oh great, another Monday"
 ]
+
+print("Lengths match:", len(SAMPLE_POSTS) == len(TRUE_LABELS))
 
 # TODO: Add 5-10 more posts and labels.
 #
