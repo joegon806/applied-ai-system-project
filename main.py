@@ -6,6 +6,7 @@ from typing import List
 
 from mood_analyzer import MoodAnalyzer
 from dataset import SAMPLE_POSTS, TRUE_LABELS, EVAL_LABELS
+from reliability import check_single_post
 
 
 def evaluate_rule_based(
@@ -98,6 +99,13 @@ def run_interactive_loop() -> None:
         # reason = analyzer.explain(user_input)
         # print(f"Model: {label} ({reason})")
         print(f"Model: {label}")
+
+        # Run the reliability checks on exactly what the user typed and
+        # surface any warnings (nondeterminism, non-invariant preprocessing,
+        # non-monotonic scoring). Silent when everything looks consistent.
+        warnings = check_single_post(user_input, analyzer)
+        for warning in warnings:
+            print(f"  [reliability] {warning}")
 
 
 if __name__ == "__main__":

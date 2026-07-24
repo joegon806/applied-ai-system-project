@@ -15,7 +15,7 @@ Run:
     python reliability.py
 """
 
-from typing import Dict, List, Set
+from typing import Dict, List, Optional, Set
 
 from mood_analyzer import MoodAnalyzer
 from dataset import SAMPLE_POSTS, TRUE_LABELS, EVAL_LABELS, LABEL_MAP
@@ -170,6 +170,144 @@ def check_lengths_aligned(
     return result
 
 
+# ---------------------------------------------------------------------
+# Single-post primitives
+#
+# Each returns a list of failure messages for ONE post (empty == passed).
+# They take an analyzer so a caller (e.g. main.py's interactive loop) can
+# reuse one instance, and they need no ground-truth label — so they work
+# on text a user just typed in.
+# ---------------------------------------------------------------------
+
+def determinism_failures(
+    analyzer: MoodAnalyzer,
+    post: str,
+    runs: int = 5,
+) -> List[str]:
+    """Same input must always produce the same label."""
+    labels = {analyzer.predict_label(post) for _ in range(runs)}
+    if len(labels) > 1:
+        return [
+            f'"{post}" produced {len(labels)} different labels across '
+            f'{runs} runs: {sorted(labels)}'
+        ]
+    return []
+
+
+def invariance_failures(analyzer: MoodAnalyzer, post: str) -> List[str]:
+    """
+    Metamorphic checks: transformations that should NOT change the label.
+    Asserts a relationship (transformed == original), so no label needed.
+
+      - case:        "I LOVE it" should equal "i love it"
+      - whitespace:  extra/leading/trailing spaces should not matter
+      - punctuation: a trailing "!" should not flip the label
+    """
+    transforms = [
+        ("case", lambda s: s.upper()),
+        ("whitespace", lambda s: "   " + s.replace(" ", "   ") + "   "),
+        ("trailing-punctuation", lambda s: s + "!"),
+    ]
+    base = analyzer.predict_label(post)
+    failures = []
+    for name, transform in transforms:
+        variant = analyzer.predict_label(transform(post))
+        if base != variant:
+            failures.append(
+                f'[{name}] "{post}" -> {base}, but transformed -> {variant}'
+            )
+    return failures
+
+
+def directional_failures(analyzer: MoodAnalyzer, post: str) -> List[str]:
+    """
+    Directional metamorphic checks on the raw score:
+      - adding a strong positive word must NOT lower the score,
+      - adding a strong negative word must NOT raise the score.
+
+    The added word follows a ". " so a punctuation token resets any pending
+    negation first. That makes the property hold for ANY input, even text
+    that ends in a negation word like "not".
+    """
+    base = analyzer.score_text(post)
+    with_pos = analyzer.score_text(post + ". love")
+    with_neg = analyzer.score_text(post + ". hate")
+
+    failures = []
+    if with_pos < base:
+        failures.append(
+            f'adding "love" LOWERED the score for "{post}": {base} -> {with_pos}'
+        )
+    if with_neg > base:
+        failures.append(
+            f'adding "hate" RAISED the score for "{post}": {base} -> {with_neg}'
+        )
+    return failures
+
+
+def check_single_post(post: str, analyzer: Optional[MoodAnalyzer] = None) -> List[str]:
+    """
+    Run every ground-truth-free reliability check on ONE post and return a
+    combined list of warnings (empty == all clear).
+
+    Designed for main.py's interactive loop: pass the text the user typed
+    and surface any reliability warnings next to the prediction.
+    """
+    analyzer = analyzer if analyzer is not None else MoodAnalyzer()
+    warnings: List[str] = []
+    warnings += determinism_failures(analyzer, post)
+    warnings += invariance_failures(analyzer, post)
+    warnings += directional_failures(analyzer, post)
+    return warnings
+
+
+# ---------------------------------------------------------------------
+# Dataset-level checks (aggregate the single-post primitives)
+# ---------------------------------------------------------------------
+
+def check_determinism(posts: List[str], runs: int = 5) -> ReliabilityResult:
+    """
+    Every post must give a stable label. A rule-based model has no
+    randomness, so this should be rock solid; a failure means something
+    stateful or nondeterministic crept in.
+    """
+    result = ReliabilityResult("Determinism (same input -> same label)")
+    analyzer = MoodAnalyzer()
+    for post in posts:
+        for message in determinism_failures(analyzer, post, runs):
+            result.fail(message)
+    if result.passed:
+        result.note(f"All {len(posts)} posts gave a stable label across {runs} runs.")
+    return result
+
+
+def check_invariance(posts: List[str]) -> ReliabilityResult:
+    """Harmless edits (case, whitespace, trailing punctuation) keep the label."""
+    result = ReliabilityResult("Invariance (harmless edits keep the label)")
+    analyzer = MoodAnalyzer()
+    for post in posts:
+        for message in invariance_failures(analyzer, post):
+            result.fail(message)
+    if result.passed:
+        result.note(
+            f"All {len(posts)} posts survived case, whitespace, and "
+            f"trailing-punctuation edits unchanged."
+        )
+    return result
+
+
+def check_directional(posts: List[str]) -> ReliabilityResult:
+    """Adding a positive word can't lower the score; a negative word can't raise it."""
+    result = ReliabilityResult("Directional monotonicity (score moves the right way)")
+    analyzer = MoodAnalyzer()
+    for post in posts:
+        for message in directional_failures(analyzer, post):
+            result.fail(message)
+    if result.passed:
+        result.note(f"Score moved in the expected direction for all {len(posts)} posts.")
+    return result
+
+
 def print_result(result: ReliabilityResult) -> None:
     status = "PASS" if result.passed else "FAIL"
     print(f"[{status}] {result.name}")
@@ -186,6 +324,10 @@ def main() -> int:
         check_label_map_coverage(TRUE_LABELS, LABEL_MAP),
         # Validate the NORMALIZED labels the rule-based model is scored on.
         check_label_space(EVAL_LABELS),
+        # Consistency checks (no ground-truth labels needed).
+        check_determinism(SAMPLE_POSTS),
+        check_invariance(SAMPLE_POSTS),
+        check_directional(SAMPLE_POSTS),
     ]
 
     for result in results:
