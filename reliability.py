@@ -262,6 +262,135 @@ def check_single_post(post: str, analyzer: Optional[MoodAnalyzer] = None) -> Lis
 
 
 # ---------------------------------------------------------------------
+# Reliability-gated prediction (the INTEGRATION layer)
+#
+# This is where reliability stops being a report and starts driving the
+# app. Instead of trusting a single predict_label() call, predict_reliable
+# probes the prediction's stability and turns that into a confidence score.
+# When confidence is too low the system ABSTAINS -- it emits "uncertain"
+# instead of a label it cannot stand behind. The label a user sees is
+# therefore *produced by* the reliability analysis, not annotated after it.
+# ---------------------------------------------------------------------
+
+# Below this confidence the model declines to commit to a label.
+UNCERTAINTY_THRESHOLD = 0.40
+
+UNCERTAIN_LABEL = "uncertain"
+
+
+class ReliablePrediction:
+    """The outcome of a reliability-gated prediction."""
+
+    def __init__(
+        self,
+        label: str,
+        confidence: float,
+        base_label: str,
+        signals: Dict[str, float],
+    ) -> None:
+        self.label = label            # what the system commits to (may be "uncertain")
+        self.confidence = confidence  # 0.0 - 1.0
+        self.base_label = base_label  # the naive predict_label() result
+        self.signals = signals        # the individual reliability signals
+        self.abstained = label == UNCERTAIN_LABEL
+
+    def format(self) -> str:
+        """Human-readable label + confidence for display in the app."""
+        pct = f"{self.confidence * 100:.0f}%"
+        if self.abstained:
+            # Still reveal which way it leaned, but do not commit to it.
+            return f"{UNCERTAIN_LABEL} ({pct} confidence, leaning {self.base_label})"
+        return f"{self.label} ({pct} confidence)"
+
+
+def _leave_one_out_stability(analyzer: MoodAnalyzer, tokens: List[str], base_label: str) -> float:
+    """
+    Fraction of single-token removals that leave the label unchanged.
+
+    If the label survives dropping any one token, the prediction rests on
+    broad evidence (stable). If removing one word flips it, the prediction
+    hangs by a thread (fragile). A single-token input is treated as maximally
+    fragile: there is nothing holding the label up but that one word.
+    """
+    if not tokens:
+        return 1.0  # empty -> always neutral, trivially stable
+    if len(tokens) == 1:
+        return 0.0
+
+    survived = 0
+    for i in range(len(tokens)):
+        reduced = " ".join(tokens[:i] + tokens[i + 1:])
+        if analyzer.predict_label(reduced) == base_label:
+            survived += 1
+    return survived / len(tokens)
+
+
+def predict_reliable(
+    text: str,
+    analyzer: Optional[MoodAnalyzer] = None,
+    threshold: float = UNCERTAINTY_THRESHOLD,
+) -> ReliablePrediction:
+    """
+    Predict a mood label AND decide whether the model should trust it.
+
+    Confidence is built from three reliability signals, all reusing the
+    same ideas as the standalone checks:
+
+      consistency : do metamorphic variants (case / whitespace / trailing
+                    punctuation) agree with the base label? A disagreement
+                    is a genuine invariance failure and should gut trust,
+                    so it multiplies the score (a hard gate).
+      stability   : leave-one-out robustness -- does the label survive
+                    dropping any single token?
+      strength    : how decisive the signal is. A large score margin is
+                    strong; a score of 0 caused by positive and negative
+                    words CANCELING (a conflict) is the weakest of all.
+
+    If the resulting confidence is below `threshold`, the system abstains
+    and emits "uncertain" rather than committing to `base_label`.
+    """
+    analyzer = analyzer if analyzer is not None else MoodAnalyzer()
+
+    base_label = analyzer.predict_label(text)
+    score, positive_count, negative_count = analyzer._score_details(text)
+    tokens = analyzer.preprocess(text)
+    margin = abs(score)
+
+    # 1. Metamorphic consistency -- these transforms SHOULD NOT change the
+    #    label, so a disagreement is a real reliability failure (hard gate).
+    variants = [
+        text.upper(),
+        "   " + text.replace(" ", "   ") + "   ",
+        text + "!",
+    ]
+    agree = sum(1 for v in variants if analyzer.predict_label(v) == base_label)
+    consistency = agree / len(variants) if variants else 1.0
+
+    # 2. Leave-one-out stability.
+    stability = _leave_one_out_stability(analyzer, tokens, base_label)
+
+    # 3. Signal strength.
+    conflict = positive_count > 0 and negative_count > 0
+    if score != 0:
+        strength = min(margin, 3) / 3.0          # 0.33 / 0.67 / 1.0
+    elif conflict:
+        strength = 0.05                          # positives and negatives cancel out
+    else:
+        strength = 0.50                          # genuine, quiet neutral
+
+    confidence = (0.45 * stability + 0.55 * strength) * consistency
+
+    label = base_label if confidence >= threshold else UNCERTAIN_LABEL
+
+    signals = {
+        "consistency": consistency,
+        "stability": stability,
+        "strength": strength,
+    }
+    return ReliablePrediction(label, confidence, base_label, signals)
+
+
+# ---------------------------------------------------------------------
 # Dataset-level checks (aggregate the single-post primitives)
 # ---------------------------------------------------------------------
 

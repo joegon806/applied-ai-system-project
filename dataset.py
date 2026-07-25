@@ -72,7 +72,8 @@ SAMPLE_POSTS = [
     "What do you mean",
     "It is what it is",
     "I told you so",
-    "Oh great, another Monday"
+    "Oh great, another Monday",
+    "Love the price but hate the service",
 ]
 
 # Human labels for each post above.
@@ -95,7 +96,8 @@ TRUE_LABELS = [  # the "right answers"
     "questioning", # "What do you mean"
     "ambiguous",  # "It is what it is"
     "passive_aggressive",  # "I told you so"
-    "sarcastic"  # "Oh great, another Monday"
+    "sarcastic",  # "Oh great, another Monday"
+    "mixed",
 ]
 
 # ---------------------------------------------------------------------

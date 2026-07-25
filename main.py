@@ -6,7 +6,7 @@ from typing import List
 
 from mood_analyzer import MoodAnalyzer
 from dataset import SAMPLE_POSTS, TRUE_LABELS, EVAL_LABELS
-from reliability import check_single_post
+from reliability import predict_reliable
 
 
 def evaluate_rule_based(
@@ -22,41 +22,56 @@ def evaluate_rule_based(
     LABEL_MAP in dataset.py and reliability.py for why). `original_labels`
     is the optional richer human label shown alongside for transparency.
 
-    Prints each text with its predicted label and the true label,
-    then returns the overall accuracy as a float between 0 and 1.
+    Predictions come from predict_reliable(), so the label scored here is
+    the reliability-gated one: on low-confidence inputs the model emits
+    "uncertain" instead of guessing, which counts as incorrect. Alongside
+    the overall accuracy we also report accuracy on the CONFIDENT subset
+    (the answers the model actually stood behind).
     """
     analyzer = MoodAnalyzer()
     correct = 0
     total = len(posts)
+
+    committed = 0          # predictions where the model did NOT abstain
+    committed_correct = 0
+    abstained = 0
 
     if original_labels is None:
         original_labels = labels
 
     print("=== Rule Based Evaluation on SAMPLE_POSTS ===")
     for text, true_label, human_label in zip(posts, labels, original_labels):
-        predicted_label = analyzer.predict_label(text)
+        prediction = predict_reliable(text, analyzer)
+        predicted_label = prediction.label
         is_correct = predicted_label == true_label
         if is_correct:
             correct += 1
 
-        # If you implement explain(), you can uncomment these lines:
-        # reason = analyzer.explain(text)
-        # print(f'"{text}" -> predicted={predicted_label}, true={true_label} ({reason})')
-
-        # Show the normalized label used for scoring, plus the original
-        # human label when it differs (e.g. "sarcastic" -> "negative").
-        if human_label != true_label:
-            print(f'"{text}" -> predicted={predicted_label}, '
-                  f'true={true_label} (human: {human_label})')
+        if prediction.abstained:
+            abstained += 1
         else:
-            print(f'"{text}" -> predicted={predicted_label}, true={true_label}')
+            committed += 1
+            if is_correct:
+                committed_correct += 1
+
+        # Show the reliability-gated label + confidence, plus the original
+        # human label when it differs (e.g. "sarcastic" -> "negative").
+        human_note = f" (human: {human_label})" if human_label != true_label else ""
+        print(f'"{text}" -> {prediction.format()}, '
+              f'true={true_label}{human_note}')
 
     if total == 0:
         print("\nNo labeled examples to evaluate.")
         return 0.0
 
     accuracy = correct / total
-    print(f"\nRule based accuracy on SAMPLE_POSTS: {accuracy:.2f}")
+    print(f"\nRule based accuracy on SAMPLE_POSTS: {accuracy:.2f} "
+          f"({correct}/{total})")
+    print(f"Abstained (uncertain): {abstained}/{total}")
+    if committed:
+        print(f"Accuracy on confident answers only: "
+              f"{committed_correct / committed:.2f} "
+              f"({committed_correct}/{committed})")
     return accuracy
 
 
@@ -70,11 +85,8 @@ def run_batch_demo() -> None:
     analyzer = MoodAnalyzer()
     print("\n=== Batch Demo on SAMPLE_POSTS (rule based) ===")
     for text in SAMPLE_POSTS:
-        label = analyzer.predict_label(text)
-        # If explain() is implemented, show a short explanation.
-        # reason = analyzer.explain(text)
-        # print(f'"{text}" -> {label} ({reason})')
-        print(f'"{text}" -> {label}')
+        prediction = predict_reliable(text, analyzer)
+        print(f'"{text}" -> {prediction.format()}')
 
 
 def run_interactive_loop() -> None:
@@ -94,18 +106,14 @@ def run_interactive_loop() -> None:
             print("Goodbye from the Mood Machine.")
             break
 
-        label = analyzer.predict_label(user_input)
-        # If explain() is implemented, you can include an explanation:
-        # reason = analyzer.explain(user_input)
-        # print(f"Model: {label} ({reason})")
-        print(f"Model: {label}")
-
-        # Run the reliability checks on exactly what the user typed and
-        # surface any warnings (nondeterminism, non-invariant preprocessing,
-        # non-monotonic scoring). Silent when everything looks consistent.
-        warnings = check_single_post(user_input, analyzer)
-        for warning in warnings:
-            print(f"  [reliability] {warning}")
+        # The reliability layer decides the answer: it commits to a label
+        # only when its consistency/stability/strength signals are strong
+        # enough, otherwise it abstains with "uncertain".
+        prediction = predict_reliable(user_input, analyzer)
+        print(f"Model: {prediction.format()}")
+        if prediction.abstained:
+            print("  (low confidence — the signals for this text are weak "
+                  "or conflicting, so the model will not commit to a mood.)")
 
 
 if __name__ == "__main__":
