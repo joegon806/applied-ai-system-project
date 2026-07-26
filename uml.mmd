@@ -1,0 +1,50 @@
+flowchart TD
+    subgraph User
+        U[Human / CLI User]
+    end
+
+    subgraph Dataset
+        DS1[SAMPLE_POSTS]
+        DS2[TRUE_LABELS]
+        DS3[EVAL_LABELS]
+    end
+
+    subgraph RuleBasedModel
+        MA[MoodAnalyzer]
+        REL[reliability.py]
+    end
+
+    subgraph MLModel
+        VEC[CountVectorizer]
+        ML[LogisticRegression]
+    end
+
+    subgraph Evaluation
+        EVAL[rule-based evaluation]
+        TEST[test_predict_reliable.py]
+    end
+
+    U -->|enter text| MA
+    DS1 -->|sample texts| MA
+    MA -->|label prediction| REL
+    REL -->|reliable output| Output[CLI output / accuracy report]
+
+    DS1 -->|training data| VEC
+    DS2 -->|training labels| ML
+    VEC -->|features| ML
+    ML -->|predictions| Output
+    DS2 -->|true labels| EVAL
+    DS3 -->|normalized labels| EVAL
+    REL -->|abstain / confidence| EVAL
+    EVAL -->|compares labels and predictions; produces accuracy report| Output
+
+    TEST -->|automated checks| REL
+    TEST -->|prints test results| Output
+    U -->|reviews results & model card| Output
+
+    style Dataset fill:#f9f,stroke:#333,stroke-width:1px
+    style RuleBasedModel fill:#9f9,stroke:#333,stroke-width:1px
+    style MLModel fill:#99f,stroke:#333,stroke-width:1px
+    style Evaluation fill:#ff9,stroke:#333,stroke-width:1px
+
+    
