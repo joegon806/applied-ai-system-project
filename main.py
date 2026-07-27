@@ -74,21 +74,6 @@ def evaluate_rule_based(
               f"({committed_correct}/{committed})")
     return accuracy
 
-
-def run_batch_demo() -> None:
-    """
-    Run the MoodAnalyzer on the sample posts and print predictions only.
-
-    This is a quick way to see how your rules behave without comparing
-    to the true labels.
-    """
-    analyzer = MoodAnalyzer()
-    print("\n=== Batch Demo on SAMPLE_POSTS (rule based) ===")
-    for text in SAMPLE_POSTS:
-        prediction = predict_reliable(text, analyzer)
-        print(f'"{text}" -> {prediction.format()}')
-
-
 def run_interactive_loop() -> None:
     """
     Let the user type their own sentences and see the predicted mood.
@@ -119,9 +104,7 @@ def run_interactive_loop() -> None:
 if __name__ == "__main__":
     # Score against normalized labels; show the original human labels too.
     evaluate_rule_based(SAMPLE_POSTS, EVAL_LABELS, TRUE_LABELS)
-
-    run_batch_demo()
-
+    
     run_interactive_loop()
 
     print("\nTip: After you explore the rule based model here,")

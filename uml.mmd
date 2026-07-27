@@ -24,20 +24,21 @@ flowchart TD
         TEST[test_predict_reliable.py]
     end
 
-    U -->|enter text| MA
+    U -->|enters text for rule-based classification| MA
     DS1 -->|sample texts| MA
     MA -->|label prediction| REL
     REL -->|reliable output| Output[CLI output / accuracy report]
 
-    DS1 -->|training data| VEC
-    DS2 -->|training labels| ML
-    VEC -->|features| ML
-    ML -->|predictions| Output
+    DS1 -->|fit training texts| VEC
+    DS2 -->|fit training labels| ML
+    U -->|enters text for ML classification| VEC
+    VEC -->|transforms text into features| ML
+    ML -->|predicts mood label| Output
     DS2 -->|true labels| EVAL
     DS3 -->|normalized labels| EVAL
     REL -->|abstain / confidence| EVAL
     EVAL -->|compares labels and predictions; produces accuracy report| Output
-
+    
     TEST -->|automated checks| REL
     TEST -->|prints test results| Output
     U -->|reviews results & model card| Output
