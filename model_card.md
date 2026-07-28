@@ -1,123 +1,21 @@
 # Model Card: Mood Machine
 
-This model card is for the Mood Machine project, which includes **two** versions of a mood classifier:
+## 1. Limitations / Biases
 
-1. A **rule based model** implemented in `mood_analyzer.py`
-2. A **machine learning model** implemented in `ml_experiments.py` using scikit learn
+The system is vastly limited by the data in its dataset: the positive and negative words, the labels, and the sample posts. Words that are obviously positive to a human may not get detected as such by the model simply because the post's positive words are not included in the data, such as "elated", "ecstatic", or even conjugated words like "happier" or "loving". The model's labels also limit the outputs it can produce, glazing over more complicated emotions like the ones in TRUE_LABELS like "sarcastic" or "passive-aggressive".
 
-You may complete this model card for whichever version you used, or compare both if you explored them.
+One of the system's biases is the confidence threshold. The model can still produce wrong answers if the computed uncertainty for the wrong answer is lower than the confidence threshold, so this threshold needs to be set carefully to accept both a high amount of correct posts and a low amount of incorrect posts. 
 
-## 1. Model Overview
+## 2. Potential Misuse
 
-**Model type:**  
-Describe whether you used the rule based model, the ML model, or both.  
-Example: “I used the rule based model only” or “I compared both models.”
+This AI model could be used for quickly evaluating the moods of human reviews/feedback of products. However, as this is a simple model that is prone to mistakes, it would be of misuse to apply this model to real-world problems as it is. To prevent this from being an issue, the model would have to be further refined with more data added to the data set and more posts tested for accuracy and confidence.
+The model could also be improved by printing out what words were used to influence the label, so that the human user could verify its accuracy. This reduces the model's abstraction, however, so perhaps it could stay as a toggleable option for users who want it.
 
-**Intended purpose:**  
-What is this model trying to do?  
-Example: classify short text messages as moods like positive, negative, neutral, or mixed.
+## 3. AI Collaboration
+(What surprised you while testing your AI's reliability?
+describe your collaboration with AI during this project. Identify one instance when the AI gave a helpful suggestion and one instance where its suggestion was flawed or incorrect.)
 
-**How it works (brief):**  
-For the rule based version, describe the scoring rules you created.  
-For the ML version, describe how training works at a high level (no math needed).
-
-
-
-## 2. Data
-
-**Dataset description:**  
-Summarize how many posts are in `SAMPLE_POSTS` and how you added new ones.
-
-**Labeling process:**  
-Explain how you chose labels for your new examples.  
-Mention any posts that were hard to label or could have multiple valid labels.
-
-**Important characteristics of your dataset:**  
-Examples you might include:  
-
-- Contains slang or emojis  
-- Includes sarcasm  
-- Some posts express mixed feelings  
-- Contains short or ambiguous messages
-
-**Possible issues with the dataset:**  
-Think about imbalance, ambiguity, or missing kinds of language.
-
-## 3. How the Rule Based Model Works (if used)
-
-**Your scoring rules:**  
-Describe the modeling choices you made.  
-Examples:  
-
-- How positive and negative words affect score  
-- Negation rules you added  
-- Weighted words  
-- Emoji handling  
-- Threshold decisions for labels
-
-**Strengths of this approach:**  
-Where does it behave predictably or reasonably well?
-
-**Weaknesses of this approach:**  
-Where does it fail?  
-Examples: sarcasm, subtlety, mixed moods, unfamiliar slang.
-
-## 4. How the ML Model Works (if used)
-
-**Features used:**  
-Describe the representation.  
-Example: “Bag of words using CountVectorizer.”
-
-**Training data:**  
-State that the model trained on `SAMPLE_POSTS` and `TRUE_LABELS`.
-
-**Training behavior:**  
-Did you observe changes in accuracy when you added more examples or changed labels?
-
-**Strengths and weaknesses:**  
-Strengths might include learning patterns automatically.  
-Weaknesses might include overfitting to the training data or picking up spurious cues.
-
-## 5. Evaluation
-
-**How you evaluated the model:**  
-Both versions can be evaluated on the labeled posts in `dataset.py`.  
-Describe what accuracy you observed.
-
-**Examples of correct predictions:**  
-Provide 2 or 3 examples and explain why they were correct.
-
-**Examples of incorrect predictions:**  
-Provide 2 or 3 examples and explain why the model made a mistake.  
-If you used both models, show how their failures differed.
-
-## 6. Limitations
-
-Describe the most important limitations.  
-Examples:  
-
-- The dataset is small  
-- The model does not generalize to longer posts  
-- It cannot detect sarcasm reliably  
-- It depends heavily on the words you chose or labeled
-
-## 7. Ethical Considerations
-
-Discuss any potential impacts of using mood detection in real applications.  
-Examples: 
-
-- Misclassifying a message expressing distress  
-- Misinterpreting mood for certain language communities  
-- Privacy considerations if analyzing personal messages
-
-## 8. Ideas for Improvement
-
-List ways to improve either model.  
-Possible directions:  
-
-- Add more labeled data  
-- Use TF IDF instead of CountVectorizer  
-- Add better preprocessing for emojis or slang  
-- Use a small neural network or transformer model  
-- Improve the rule based scoring method  
-- Add a real test set instead of training accuracy only
+Something that surprised me while testing my AI's reliability was that it often yielded "uncertain" when evaluating mixed-mood posts, leaving a spot in the algorithm to be re-evaluated and improved. 
+During this project, I collaborated with AI chatbot Claude Code by asking it for help designing and implementing the reliability and testing system, while I reviewed and approved or rejected its suggestions as needed. 
+One instance when the AI gave a helpful suggestion was before the reliability and testing system was implemented. When I asked it for the best way to implement the system, it simultaneously addressed an issue that was present in the project, which was that the dataset had more true labels than the labels labels that the model could produce. It suggested that each of the extra labels be mapped to one of the four labels in a dictionary, so that when testing for accuracy, the tests can compare the new mapped labels to the model's predicted labels and none of the 'correct' labels would be out of scope of the model.
+One instance when the AI gave a flawed suggestion was when implementing the reliability functions. The AI initially suggested for the functions to loop over a list of posts (e.g., the sample posts in dataset.py). I told the AI that instead, I wanted each function to be applicable to a single post at a time, so that they could be applied to a single post when a user enters one in main.py.

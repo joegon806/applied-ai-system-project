@@ -56,6 +56,6 @@ One trade-off I made when developing this project's expansion is that I neglecte
 
 What worked with this model is that obviously positive or negative posts (e.g., no words of the opposite mood) get labeled correctly. One thing that didn't work with this model is that I found that mixed posts (e.g. posts with both positive and negative posts) tended to be flagged as uncertain with low confidence. I also found that the model still produces wrong answers if their computed uncertainty is lower than the uncertainty threshold, which taught me that such a mood detection algorithm is not a cut-and-dry technique but instead requires careful human evaluation and adjustment, such as adjusting the threshold of uncertainty in this model.
 
-# Reflection: A brief note on what this project taught you about AI and problem-solving. Your graded responsible-AI reflection — how you collaborated with AI, one helpful and one flawed AI suggestion, and your system's limitations — goes in model_card.md (see Step 5), not here. Reflection content placed only in the README does not earn the reflection points.
+# Reflection
 
 This project taught me that using and creating an AI must involve a healthy amount of human collaboration, including supervising the AI's suggestions and adjusting details as needed.
