@@ -12,8 +12,6 @@ This AI model could be used for quickly evaluating the moods of human reviews/fe
 The model could also be improved by printing out what words were used to influence the label, so that the human user could verify its accuracy. This reduces the model's abstraction, however, so perhaps it could stay as a toggleable option for users who want it.
 
 ## 3. AI Collaboration
-(What surprised you while testing your AI's reliability?
-describe your collaboration with AI during this project. Identify one instance when the AI gave a helpful suggestion and one instance where its suggestion was flawed or incorrect.)
 
 Something that surprised me while testing my AI's reliability was that it often yielded "uncertain" when evaluating mixed-mood posts, leaving a spot in the algorithm to be re-evaluated and improved. 
 During this project, I collaborated with AI chatbot Claude Code by asking it for help designing and implementing the reliability and testing system, while I reviewed and approved or rejected its suggestions as needed. 
