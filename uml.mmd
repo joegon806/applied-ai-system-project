@@ -26,19 +26,16 @@ USER[Human / CLI User]
     subgraph Test Suite
         TEST[test_predict_reliable.py]
     end
-
-    Rule_Based_Classification
+    
     USER -->|enters text for rule-based classification| MA
     MA -->|label prediction for user text| REL
     REL -->|reliability determined for user text| Output[CLI output]
-
-    Machine_Learning_Classification
+    
     DS -->|fit training data| VEC
     USER -->|enters text for ML classification| VEC
     VEC -->|transforms text into features| ML
     ML -->|predicts mood label| Output
-
-    Reliability.py
+    
     DS -->|for checking reliability| REP
     REP --> REOUT
     DS -->|sample text for evaluation| MA
@@ -48,7 +45,6 @@ USER[Human / CLI User]
     EVAL --> REOUT
     REOUT --> Output
 
-    Test_Suite
     reliability.py -->|goes through automated testing| TEST
     TEST -->|prints test results| Output
     USER -->|reviews command-line output| Output
