@@ -444,10 +444,75 @@ def print_result(result: ReliabilityResult) -> None:
         print(f"    {message}")
     print()
 
+def evaluate_rule_based(
+    posts: List[str],
+    labels: List[str],
+    original_labels: List[str] = None,
+) -> float:
+    """
+    Evaluate the rule based MoodAnalyzer on a labeled dataset.
+
+    `labels` are the labels the model is scored against — pass the
+    NORMALIZED EVAL_LABELS so the four-label model is judged fairly (see
+    LABEL_MAP in dataset.py and reliability.py for why). `original_labels`
+    is the optional richer human label shown alongside for transparency.
+
+    Predictions come from predict_reliable(), so the label scored here is
+    the reliability-gated one: on low-confidence inputs the model emits
+    "uncertain" instead of guessing, which counts as incorrect. Alongside
+    the overall accuracy we also report accuracy on the CONFIDENT subset
+    (the answers the model actually stood behind).
+    """
+    analyzer = MoodAnalyzer()
+    correct = 0
+    total = len(posts)
+
+    committed = 0          # predictions where the model did NOT abstain
+    committed_correct = 0
+    abstained = 0
+
+    if original_labels is None:
+        original_labels = labels
+
+    print("=== Rule Based Evaluation on SAMPLE_POSTS ===")
+    for text, true_label, human_label in zip(posts, labels, original_labels):
+        prediction = predict_reliable(text, analyzer)
+        predicted_label = prediction.label
+        is_correct = predicted_label == true_label
+        if is_correct:
+            correct += 1
+
+        if prediction.abstained:
+            abstained += 1
+        else:
+            committed += 1
+            if is_correct:
+                committed_correct += 1
+
+        # Show the reliability-gated label + confidence, plus the original
+        # human label when it differs (e.g. "sarcastic" -> "negative").
+        human_note = f" (human: {human_label})" if human_label != true_label else ""
+        print(f'"{text}" -> {prediction.format()}, '
+              f'true={true_label}{human_note}')
+
+    if total == 0:
+        print("\nNo labeled examples to evaluate.")
+        return 0.0
+
+    accuracy = correct / total
+    print(f"\nRule based accuracy on SAMPLE_POSTS: {accuracy:.2f} "
+          f"({correct}/{total})")
+    print(f"Abstained (uncertain): {abstained}/{total}")
+    if committed:
+        print(f"Accuracy on confident answers only: "
+              f"{committed_correct / committed:.2f} "
+              f"({committed_correct}/{committed})")
+    print("")
+    return accuracy
 
 def main() -> int:
-    print("=== Mood Machine Reliability Report ===\n")
 
+    print("=== Mood Machine Reliability Report ===\n")
     results = [
         check_lengths_aligned(SAMPLE_POSTS, TRUE_LABELS),
         check_label_map_coverage(TRUE_LABELS, LABEL_MAP),
@@ -469,6 +534,10 @@ def main() -> int:
         return 1
 
     print("All reliability checks passed.")
+    
+    # Score against normalized labels; show the original human labels too.
+    evaluate_rule_based(SAMPLE_POSTS, EVAL_LABELS, TRUE_LABELS)
+
     return 0
 
 
